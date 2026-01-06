@@ -127,4 +127,31 @@ export function fetchAttendanceReportBySchedule(
   });
 }
 
+export interface StudentAttendance {
+  id: string;
+  name: string;
+  nim: string;
+  status: "Hadir" | "Tidak Hadir";
+  waktu_absen: string;
+}
+
+export interface PertemuanDetail {
+  matkul_name: string;
+  pertemuan: number;
+  tanggal: string;
+  status: string;
+  total_mahasiswa: number;
+  hadir: number;
+  tidak_hadir: number;
+  students: StudentAttendance[];
+}
+
+export function fetchPertemuanDetail(token: string, matkulId: string, pertemuanKe: number) {
+  return apiFetch<PertemuanDetail>(`/matkul/${matkulId}/pertemuan/${pertemuanKe}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 export { API_BASE_URL };

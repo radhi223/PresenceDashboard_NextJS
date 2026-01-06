@@ -263,8 +263,7 @@ export default function OlahDataPage() {
                                 key={pertemuan.pertemuan}
                                 className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                                 onClick={() => {
-                                  // TODO: Navigate to specific pertemuan page
-                                  console.log(`Navigate to Pertemuan ${pertemuan.pertemuan} of ${matkul.nama_matkul}`)
+                                  router.push(`/olah-data/${matkul._id}/${pertemuan.pertemuan}`)
                                 }}
                               >
                                 <div className="flex items-center gap-3">
