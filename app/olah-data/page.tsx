@@ -12,6 +12,9 @@ interface Pertemuan {
   pertemuan: number
   tanggal: string
   status: "Selesai" | "Sedang Berlangsung" | "Belum Dimulai"
+  present_count: number
+  total_enrolled: number
+  attendance_ratio: string
 }
 
 interface Matkul {
@@ -35,7 +38,7 @@ interface Matkul {
 
 export default function OlahDataPage() {
   const router = useRouter()
-  const { user, token, loading, isAuthenticated } = useAuth()
+  const { user, token, loading, isAuthenticated, logout } = useAuth()
   const [matkulList, setMatkulList] = useState<Matkul[]>([])
   const [loadingMatkul, setLoadingMatkul] = useState(true)
   const [error, setError] = useState("")
@@ -76,6 +79,15 @@ export default function OlahDataPage() {
         if (!response.ok) {
           const errorText = await response.text()
           console.log("Error response:", errorText)
+          
+          // Handle 401 Unauthorized (expired token)
+          if (response.status === 401) {
+            console.log("Token expired, redirecting to login")
+            logout() // Clear stored credentials
+            router.push("/login")
+            return
+          }
+          
           throw new Error(`Failed to fetch matkul data: ${response.status} - ${errorText}`)
         }
 
@@ -249,7 +261,7 @@ export default function OlahDataPage() {
                             {matkul.pertemuan_list.map((pertemuan) => (
                               <div
                                 key={pertemuan.pertemuan}
-                                className="flex items-center justify-between p-2 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                                 onClick={() => {
                                   // TODO: Navigate to specific pertemuan page
                                   console.log(`Navigate to Pertemuan ${pertemuan.pertemuan} of ${matkul.nama_matkul}`)
@@ -267,9 +279,28 @@ export default function OlahDataPage() {
                                     })}
                                   </span>
                                 </div>
-                                <span className={`text-xs px-2 py-1 rounded-full border font-medium ${getStatusColor(pertemuan.status)}`}>
-                                  {pertemuan.status}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  {/* Attendance Info */}
+                                  {pertemuan.status === "Selesai" && (
+                                    <span className="text-xs text-slate-600 bg-slate-200 px-2 py-1 rounded font-medium">
+                                      {pertemuan.attendance_ratio}
+                                    </span>
+                                  )}
+                                  {pertemuan.status === "Sedang Berlangsung" && (
+                                    <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded font-medium">
+                                      Live: {pertemuan.attendance_ratio}
+                                    </span>
+                                  )}
+                                  {pertemuan.status === "Belum Dimulai" && pertemuan.total_enrolled > 0 && (
+                                    <span className="text-xs text-slate-400 px-2 py-1 rounded font-medium">
+                                      0/{pertemuan.total_enrolled}
+                                    </span>
+                                  )}
+                                  {/* Status Badge */}
+                                  <span className={`text-xs px-2 py-1 rounded-full border font-medium ${getStatusColor(pertemuan.status)}`}>
+                                    {pertemuan.status}
+                                  </span>
+                                </div>
                               </div>
                             ))}
                           </div>
