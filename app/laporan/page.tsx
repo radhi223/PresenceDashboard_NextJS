@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Home, AlertCircle, CalendarDays, Layers } from "lucide-react"
+import { Home, AlertCircle, CalendarDays, Layers, TrendingUp } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/hooks/auth"
 import type { Matkul } from "@/lib/api"
@@ -14,14 +14,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from "recharts"
 
-interface ReportState {
-  totalAttendance: number
-  attendees: {
-    name: string
-    category: string
-    timestamp?: string
-  }[]
+interface TrendPoint {
+  month: string
+  attendance: number
+}
+
+interface DistributionPoint {
+  range: string
+  students: number
+}
+
+interface StudentSummary {
+  user_id: string
+  name: string
+  attendance_percent: number
+  attended_sessions: number
+  total_sessions: number
+}
+
+interface HistoryRow {
+  pertemuan: string
+  tanggal: string
+  kehadiran: string
+}
+
+interface ReportSummary {
+  trend: TrendPoint[]
+  distribution: DistributionPoint[]
+  students: StudentSummary[]
+  pertemuan_history: HistoryRow[]
+  default_student_id?: string | null
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
@@ -33,12 +67,12 @@ export default function Laporan() {
   const { token, loading, isAuthenticated } = useAuth()
   const [matkulList, setMatkulList] = useState<Matkul[]>([])
   const [selectedMatkulId, setSelectedMatkulId] = useState<string>("")
-  const [selectedPertemuan, setSelectedPertemuan] = useState<number | null>(null)
   const [loadingMatkul, setLoadingMatkul] = useState(true)
-  const [loadingReport, setLoadingReport] = useState(false)
+  const [summary, setSummary] = useState<ReportSummary | null>(null)
+  const [loadingSummary, setLoadingSummary] = useState(false)
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
-  const [reportError, setReportError] = useState<string | null>(null)
-  const [report, setReport] = useState<ReportState | null>(null)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -96,53 +130,18 @@ export default function Laporan() {
     }
   }, [token, router])
 
-  const selectedMatkul = useMemo(() => {
-    return matkulList.find((matkul) => matkul._id === selectedMatkulId) || null
-  }, [matkulList, selectedMatkulId])
-
   useEffect(() => {
-    if (!selectedMatkul) {
-      setSelectedPertemuan(null)
-      return
-    }
-
-    const existing = selectedMatkul.pertemuan_list?.find(
-      (item) => item.pertemuan === selectedPertemuan
-    )
-    if (!existing) {
-      const defaultPertemuan = selectedMatkul.pertemuan_list?.find(
-        (item) => item.status === "Sedang Berlangsung"
-      ) || selectedMatkul.pertemuan_list?.[0]
-      setSelectedPertemuan(defaultPertemuan ? defaultPertemuan.pertemuan : null)
-    }
-  }, [selectedMatkul])
-
-  useEffect(() => {
-    const loadReport = async () => {
-      if (!token || !selectedMatkul || selectedPertemuan === null) {
-        setReport(null)
-        return
-      }
-
-      const pertemuanInfo = selectedMatkul.pertemuan_list?.find(
-        (item) => item.pertemuan === selectedPertemuan
-      )
-
-      if (!pertemuanInfo) {
-        setReport(null)
+    const loadSummary = async () => {
+      if (!token || !selectedMatkulId) {
+        setSummary(null)
         return
       }
 
       try {
-        setLoadingReport(true)
-        setReportError(null)
-        const meetingDate = pertemuanInfo.tanggal.slice(0, 10)
-        const query = new URLSearchParams({
-          course_name: selectedMatkul.nama_matkul,
-          meeting_date: meetingDate,
-        })
+        setLoadingSummary(true)
+        setSummaryError(null)
 
-        const response = await fetch(`${API_BASE_URL}/attendance/report/by-schedule?${query.toString()}`, {
+        const response = await fetch(`${API_BASE_URL}/matkul/${selectedMatkulId}/report-summary`, {
           headers: {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -155,43 +154,47 @@ export default function Laporan() {
             return
           }
           const errorText = await response.text()
-          throw new Error(errorText || "Gagal memuat laporan presensi")
+          throw new Error(errorText || "Gagal memuat ringkasan laporan")
         }
 
-        const data = await response.json()
-        setReport({
-          totalAttendance: data.total_attendance,
-          attendees: data.attendees.map((attendee: { full_name: string; category: string; timestamp?: string }) => ({
-            name: attendee.full_name,
-            category: attendee.category,
-            timestamp: attendee.timestamp,
-          })),
-        })
+        const data: ReportSummary = await response.json()
+        setSummary(data)
+        const defaultStudent = data.default_student_id || data.students?.[0]?.user_id || ""
+        setSelectedStudentId(defaultStudent)
       } catch (err: any) {
-        setReport(null)
-        setReportError(err.message || "Gagal memuat laporan presensi")
+        setSummary(null)
+        setSummaryError(err.message || "Gagal memuat ringkasan laporan")
       } finally {
-        setLoadingReport(false)
+        setLoadingSummary(false)
       }
     }
 
-    loadReport()
-  }, [token, selectedMatkul, selectedPertemuan, router])
+    loadSummary()
+  }, [token, selectedMatkulId, router])
 
-  if (loading) {
+  const selectedMatkul = useMemo(() => matkulList.find((m) => m._id === selectedMatkulId) || null, [matkulList, selectedMatkulId])
+  const trendData = summary?.trend?.length ? summary.trend : [{ month: "Mg 1", attendance: 0 }]
+  const distributionData = summary?.distribution?.length ? summary.distribution : [
+    { range: "<50%", students: 0 },
+    { range: "50-70%", students: 0 },
+    { range: "70-90%", students: 0 },
+    { range: ">90%", students: 0 },
+  ]
+  const selectedStudent = summary?.students?.find((student) => student.user_id === selectedStudentId) || summary?.students?.[0] || null
+  const attendancePercent = selectedStudent?.attendance_percent || 0
+  const circumference = 2 * Math.PI * 90
+  const dashArray = `${(attendancePercent / 100) * circumference} ${circumference}`
+  const historyRows = summary?.pertemuan_history || []
+  const trendDelta = useMemo(() => {
+    if (!summary?.trend || summary.trend.length < 2) return null
+    const first = summary.trend[0].attendance
+    const last = summary.trend[summary.trend.length - 1].attendance
+    return Number((last - first).toFixed(1))
+  }, [summary])
+
+  if (loading || !isAuthenticated) {
     return null
   }
-
-  if (!isAuthenticated) {
-    return null
-  }
-
-  const pertemuanList = selectedMatkul?.pertemuan_list || []
-  const activePertemuan = pertemuanList.find((item) => item.pertemuan === selectedPertemuan)
-  const totalEnrolled = activePertemuan?.total_enrolled || 0
-  const hadir = report?.totalAttendance || 0
-  const tidakHadir = Math.max(0, totalEnrolled - hadir)
-  const attendanceRate = totalEnrolled > 0 ? Math.round((hadir / totalEnrolled) * 100) : 0
 
   return (
     <DashboardLayout>
@@ -204,44 +207,21 @@ export default function Laporan() {
       </div>
 
       <div className="flex-1 overflow-auto p-4 md:p-8 space-y-8">
-        <div className="flex flex-col lg:flex-row lg:items-end gap-6">
-          <div className="flex-1">
+        <div className="flex justify-end w-full">
+          <div className="w-full md:w-64">
             <label className="block text-sm font-medium text-slate-700 mb-2">Pilih Mata Kuliah</label>
             <Select
               value={selectedMatkulId}
-              onValueChange={(value) => {
-                setSelectedMatkulId(value)
-                setSelectedPertemuan(null)
-              }}
+              onValueChange={(value) => setSelectedMatkulId(value)}
               disabled={loadingMatkul || matkulList.length === 0}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Pilih mata kuliah" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent align="end">
                 {matkulList.map((matkul) => (
                   <SelectItem key={matkul._id} value={matkul._id}>
                     {matkul.nama_matkul}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-slate-700 mb-2">Pilih Pertemuan</label>
-            <Select
-              value={selectedPertemuan?.toString() || ""}
-              onValueChange={(value) => setSelectedPertemuan(Number(value))}
-              disabled={!selectedMatkul || pertemuanList.length === 0}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pilih pertemuan" />
-              </SelectTrigger>
-              <SelectContent>
-                {pertemuanList.map((pertemuan) => (
-                  <SelectItem key={pertemuan.pertemuan} value={pertemuan.pertemuan.toString()}>
-                    Pertemuan {pertemuan.pertemuan} • {new Date(pertemuan.tanggal).toLocaleDateString("id-ID")}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -257,39 +237,113 @@ export default function Laporan() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm text-slate-500 uppercase tracking-wide">Total Kehadiran</CardTitle>
+          <Card className="overflow-hidden">
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <p className="text-xs uppercase text-slate-500 tracking-wide">Tren Kehadiran Kelas</p>
+                <h3 className="text-lg font-bold text-slate-900">Rata-rata kehadiran per minggu</h3>
+              </div>
+              {trendDelta !== null && (
+                <div className={`flex items-center gap-1 px-2 py-1 rounded ${trendDelta >= 0 ? "bg-green-50 text-green-600" : "bg-rose-50 text-rose-600"}`}>
+                  <TrendingUp size={16} />
+                  <span className="text-sm font-semibold">{trendDelta > 0 ? "+" : ""}{trendDelta}%</span>
+                </div>
+              )}
             </CardHeader>
-            <CardContent className="text-4xl font-bold text-slate-900">
-              {loadingReport ? "-" : hadir}
+            <CardContent className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="month" stroke="#94A3B8" style={{ fontSize: "12px" }} />
+                  <YAxis stroke="#94A3B8" style={{ fontSize: "12px" }} />
+                  <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #E2E8F0", borderRadius: "8px" }} />
+                  <Line type="monotone" dataKey="attendance" stroke="#2563EB" dot={{ fill: "#2563EB", r: 4 }} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm text-slate-500 uppercase tracking-wide">Terdaftar</CardTitle>
+              <p className="text-xs uppercase text-slate-500 tracking-wide">Distribusi Kehadiran</p>
+              <h3 className="text-lg font-bold text-slate-900">Jumlah mahasiswa per persentase</h3>
             </CardHeader>
-            <CardContent className="text-4xl font-bold text-slate-900">
-              {totalEnrolled}
+            <CardContent className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={distributionData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="range" stroke="#94A3B8" style={{ fontSize: "12px" }} />
+                  <YAxis stroke="#94A3B8" style={{ fontSize: "12px" }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #E2E8F0", borderRadius: "8px" }} />
+                  <Bar dataKey="students" fill="#60A5FA" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm text-slate-500 uppercase tracking-wide">Persentase</CardTitle>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase text-slate-500 tracking-wide">Persentase Kehadiran</p>
+                  <h3 className="text-lg font-bold text-slate-900">Pilih mahasiswa untuk melihat detail</h3>
+                </div>
+                <div className="min-w-[160px]">
+                  <Select
+                    value={selectedStudentId}
+                    onValueChange={setSelectedStudentId}
+                    disabled={!summary || summary.students.length === 0}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Pilih mahasiswa" />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {summary?.students?.map((student) => (
+                        <SelectItem key={student.user_id} value={student.user_id}>
+                          {student.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-slate-900">{attendanceRate}%</div>
-              <p className="text-sm text-slate-500 mt-2">
-                {hadir} hadir • {tidakHadir} belum hadir
-              </p>
+            <CardContent className="flex flex-col items-center gap-6">
+              <div className="relative w-40 h-40">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+                  <circle cx="100" cy="100" r="90" fill="none" stroke="#E5E7EB" strokeWidth="10" />
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="90"
+                    fill="none"
+                    stroke="#2563EB"
+                    strokeWidth="10"
+                    strokeDasharray={dashArray}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-4xl font-bold text-slate-900">{attendancePercent}%</span>
+                  <span className="text-xs text-slate-500 uppercase mt-1">Kehadiran</span>
+                </div>
+              </div>
+              {selectedStudent ? (
+                <div className="text-center text-sm text-slate-600">
+                  <p className="font-semibold text-slate-900">{selectedStudent.name}</p>
+                  <p>{selectedStudent.attended_sessions}/{selectedStudent.total_sessions} pertemuan hadir</p>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400">Belum ada data mahasiswa.</p>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {reportError && (
+        {summaryError && (
           <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
             <AlertCircle className="h-5 w-5" />
-            <span>{reportError}</span>
+            <span>{summaryError}</span>
           </div>
         )}
 
@@ -297,40 +351,32 @@ export default function Laporan() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-slate-500" />
-              Detail Kehadiran Pertemuan
+              Detail Riwayat Pertemuan
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loadingReport ? (
+            {loadingSummary ? (
               <div className="text-center py-10 text-slate-500">Memuat laporan...</div>
-            ) : !report || report.attendees.length === 0 ? (
-              <div className="text-center py-10 text-slate-400">Belum ada data kehadiran untuk pertemuan ini.</div>
+            ) : historyRows.length === 0 ? (
+              <div className="text-center py-10 text-slate-400">Belum ada data pertemuan untuk mata kuliah ini.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-full">
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-xs text-slate-500 uppercase">
-                      <th className="py-3 pr-4 font-semibold">Nama</th>
-                      <th className="py-3 pr-4 font-semibold">Kategori</th>
-                      <th className="py-3 font-semibold text-right">Waktu</th>
+                      <th className="px-3 md:px-4 py-3 font-semibold">Pertemuan</th>
+                      <th className="px-3 md:px-4 py-3 font-semibold">Tanggal</th>
+                      <th className="px-3 md:px-4 py-3 font-semibold text-right">Kehadiran</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {report.attendees.map((attendee, idx) => (
-                      <tr key={`${attendee.name}-${idx}`} className="border-b border-slate-100">
-                        <td className="py-3 pr-4 text-sm font-medium text-slate-900">{attendee.name}</td>
-                        <td className="py-3 pr-4 text-sm text-slate-600 flex items-center gap-2">
-                          <Layers className="h-4 w-4 text-slate-400" />
-                          {attendee.category}
+                    {historyRows.map((row, idx) => (
+                      <tr key={`${row.pertemuan}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                        <td className="px-3 md:px-4 py-3 text-sm font-medium text-slate-900">{row.pertemuan}</td>
+                        <td className="px-3 md:px-4 py-3 text-sm text-slate-600">
+                          {row.tanggal ? new Date(row.tanggal).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                         </td>
-                        <td className="py-3 text-sm text-slate-600 text-right">
-                          {attendee.timestamp
-                            ? new Date(attendee.timestamp).toLocaleTimeString("id-ID", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : "-"}
-                        </td>
+                        <td className="px-3 md:px-4 py-3 text-sm font-semibold text-right text-slate-900">{row.kehadiran}</td>
                       </tr>
                     ))}
                   </tbody>
