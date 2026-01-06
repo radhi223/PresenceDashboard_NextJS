@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Home, AlertCircle, CalendarDays, Layers, TrendingUp } from "lucide-react"
+import { Home, AlertCircle, CalendarDays, TrendingUp } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/hooks/auth"
 import type { Matkul } from "@/lib/api"
@@ -44,6 +44,14 @@ interface StudentSummary {
   total_sessions: number
 }
 
+interface MatkulComparison {
+  matkul_id: string
+  nama_matkul: string
+  attendance_count: number
+  total_enrolled: number
+  attendance_percent: number
+}
+
 interface HistoryRow {
   pertemuan: string
   tanggal: string
@@ -73,6 +81,9 @@ export default function Laporan() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [comparisonData, setComparisonData] = useState<MatkulComparison[]>([])
+  const [loadingComparison, setLoadingComparison] = useState(true)
+  const [comparisonError, setComparisonError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -172,14 +183,49 @@ export default function Laporan() {
     loadSummary()
   }, [token, selectedMatkulId, router])
 
+  useEffect(() => {
+    const loadComparison = async () => {
+      if (!token) {
+        setComparisonData([])
+        setLoadingComparison(false)
+        return
+      }
+
+      try {
+        setLoadingComparison(true)
+        setComparisonError(null)
+
+        const response = await fetch(`${API_BASE_URL}/matkul/attendance-distribution`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            router.push("/login")
+            return
+          }
+          const errorText = await response.text()
+          throw new Error(errorText || "Gagal memuat distribusi kehadiran")
+        }
+
+        const data: MatkulComparison[] = await response.json()
+        setComparisonData(data)
+      } catch (err: any) {
+        setComparisonData([])
+        setComparisonError(err.message || "Gagal memuat distribusi kehadiran")
+      } finally {
+        setLoadingComparison(false)
+      }
+    }
+
+    loadComparison()
+  }, [token, router])
+
   const selectedMatkul = useMemo(() => matkulList.find((m) => m._id === selectedMatkulId) || null, [matkulList, selectedMatkulId])
   const trendData = summary?.trend?.length ? summary.trend : [{ month: "Mg 1", attendance: 0 }]
-  const distributionData = summary?.distribution?.length ? summary.distribution : [
-    { range: "<50%", students: 0 },
-    { range: "50-70%", students: 0 },
-    { range: "70-90%", students: 0 },
-    { range: ">90%", students: 0 },
-  ]
   const selectedStudent = summary?.students?.find((student) => student.user_id === selectedStudentId) || summary?.students?.[0] || null
   const attendancePercent = selectedStudent?.attendance_percent || 0
   const circumference = 2 * Math.PI * 90
@@ -191,6 +237,19 @@ export default function Laporan() {
     const last = summary.trend[summary.trend.length - 1].attendance
     return Number((last - first).toFixed(1))
   }, [summary])
+  const comparisonChartData = useMemo(() => {
+    if (comparisonData.length === 0) {
+      return [
+        { matkul: "Belum ada data", hadir: 0, total: 0, percentage: 0 },
+      ]
+    }
+    return comparisonData.map((item) => ({
+      matkul: item.nama_matkul,
+      hadir: item.attendance_count,
+      total: item.total_enrolled,
+      percentage: item.attendance_percent,
+    }))
+  }, [comparisonData])
 
   if (loading || !isAuthenticated) {
     return null
@@ -265,19 +324,29 @@ export default function Laporan() {
 
           <Card>
             <CardHeader>
-              <p className="text-xs uppercase text-slate-500 tracking-wide">Distribusi Kehadiran</p>
-              <h3 className="text-lg font-bold text-slate-900">Jumlah mahasiswa per persentase</h3>
+              <p className="text-xs uppercase text-slate-500 tracking-wide">Perbandingan Kehadiran</p>
+              <h3 className="text-lg font-bold text-slate-900">Jumlah hadir antar mata kuliah</h3>
             </CardHeader>
             <CardContent className="h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={distributionData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis dataKey="range" stroke="#94A3B8" style={{ fontSize: "12px" }} />
-                  <YAxis stroke="#94A3B8" style={{ fontSize: "12px" }} allowDecimals={false} />
-                  <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #E2E8F0", borderRadius: "8px" }} />
-                  <Bar dataKey="students" fill="#60A5FA" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {loadingComparison ? (
+                <div className="flex items-center justify-center h-full text-sm text-slate-500">Memuat data perbandingan...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={comparisonChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="matkul" stroke="#94A3B8" style={{ fontSize: "12px" }} />
+                    <YAxis stroke="#94A3B8" style={{ fontSize: "12px" }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#fff", border: "1px solid #E2E8F0", borderRadius: "8px" }}
+                      formatter={(value: any, _name, props) => {
+                        const total = props?.payload?.total ?? 0
+                        return [`${value}/${total} hadir`, "Mahasiswa"]
+                      }}
+                    />
+                    <Bar dataKey="hadir" fill="#60A5FA" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -344,6 +413,13 @@ export default function Laporan() {
           <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
             <AlertCircle className="h-5 w-5" />
             <span>{summaryError}</span>
+          </div>
+        )}
+
+        {comparisonError && (
+          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+            <AlertCircle className="h-5 w-5" />
+            <span>{comparisonError}</span>
           </div>
         )}
 
