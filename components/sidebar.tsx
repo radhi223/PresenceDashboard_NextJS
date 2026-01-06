@@ -1,13 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { LayoutDashboard, Activity, BookOpen, FileText } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { LayoutDashboard, Activity, BookOpen, FileText, LogOut } from "lucide-react"
+import { useAuth } from "@/hooks/auth"
 
 const menuItems = [
   {
     label: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
@@ -29,6 +30,13 @@ const menuItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { logout } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+    router.push("/login")
+  }
 
   return (
     <aside className="w-64 bg-slate-800 text-slate-100 flex flex-col">
@@ -49,7 +57,7 @@ export default function Sidebar() {
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive =
-              item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href)
+              item.href === "/dashboard" ? pathname === "/dashboard" : pathname === item.href || pathname.startsWith(item.href)
 
             return (
               <li key={item.href}>
@@ -70,7 +78,11 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="px-4 py-4 border-t border-slate-700">
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors">
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors"
+        >
+          <LogOut size={20} />
           <span className="text-sm font-medium">Logout</span>
         </button>
       </div>

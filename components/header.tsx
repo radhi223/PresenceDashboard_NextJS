@@ -2,10 +2,22 @@
 
 import { Bell, Settings } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
+import { useAuth } from "@/hooks/auth"
 
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
+  const { user } = useAuth()
+
+  // Get initials from user name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
 
   return (
     <header className="bg-white border-b border-slate-200 px-8 py-4">
@@ -28,11 +40,15 @@ export default function Header() {
           {/* User Profile */}
           <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
             <div className="text-right">
-              <p className="text-sm font-semibold text-slate-900">Dr. Rani Megasari</p>
-              <p className="text-xs text-slate-500">Dosen</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {user?.nama || "User"}
+              </p>
+              <p className="text-xs text-slate-500">
+                {user?.jabatan || "Dosen"}
+              </p>
             </div>
             <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-              RM
+              {user?.nama ? getInitials(user.nama) : "U"}
             </div>
           </div>
         </div>
