@@ -50,6 +50,8 @@ interface MatkulComparison {
   attendance_count: number
   total_enrolled: number
   attendance_percent: number
+  session_count: number
+  max_capacity: number
 }
 
 interface HistoryRow {
@@ -242,13 +244,13 @@ export default function Laporan() {
   const comparisonChartData = useMemo(() => {
     if (comparisonData.length === 0) {
       return [
-        { matkul: "Belum ada data", hadir: 0, total: 0, percentage: 0 },
+        { matkul: "Belum ada data", hadir: 0, capacity: 0, percentage: 0 },
       ]
     }
     return comparisonData.map((item) => ({
       matkul: item.nama_matkul,
       hadir: item.attendance_count,
-      total: item.total_enrolled,
+      capacity: item.max_capacity || item.total_enrolled,
       percentage: item.attendance_percent,
     }))
   }, [comparisonData])
@@ -341,8 +343,9 @@ export default function Laporan() {
                     <Tooltip
                       contentStyle={{ backgroundColor: "#fff", border: "1px solid #E2E8F0", borderRadius: "8px" }}
                       formatter={(value: any, _name, props) => {
-                        const total = props?.payload?.total ?? 0
-                        return [`${value}/${total} hadir`, "Mahasiswa"]
+                        const capacity = props?.payload?.capacity ?? 0
+                        const percent = props?.payload?.percentage ?? 0
+                        return [`${value}/${capacity} kehadiran`, `${percent}%`]
                       }}
                     />
                     <Bar dataKey="hadir" fill="#60A5FA" radius={[8, 8, 0, 0]} />
