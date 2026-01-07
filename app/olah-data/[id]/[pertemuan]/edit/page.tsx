@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/auth"
 import { fetchPertemuanDetail, updateManualAttendance, type PertemuanDetail, type StudentAttendance } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -169,30 +170,31 @@ export default function EditPertemuanPage() {
 
     // Handle save
     const handleSave = async () => {
-        // Validation removed: we don't strictly require time for manual attendance in current simple flow
         if (!token || !data) return
+
+        // Optional: Run validation if we want to enforce time entry
+        // if (!validate()) return
 
         try {
             setSaving(true)
             setValidationError("")
 
-            // We need to loop through students and call the API individually
-            // because the current manual endpoint processes one student at a time.
-            // (Ideally, backend would support bulk, but based on current backend code...)
-            
-            // Filter only changed items to optimize? 
-            // For now, let's just update everyone or maybe we should optimize to only update changed ones?
-            // The user asked for "CRUD still doesn't work... fix that".
-            // Sending requests in parallel
-            
-            const promises = students.map(s => 
-                updateManualAttendance(token, {
+            const promises = students.map(s => {
+                let timestamp: string | undefined = undefined
+                // If student is present and has time, construct timestamp
+                if (s.isPresent && s.editedTime && data.tanggal) {
+                    const datePart = data.tanggal.includes("T") ? data.tanggal.split("T")[0] : data.tanggal
+                    timestamp = createISOTimestamp(datePart, s.editedTime)
+                }
+
+                return updateManualAttendance(token, {
                     matkul_id: id,
                     pertemuan: parseInt(pertemuan),
                     student_id: s.id,
-                    status: s.isPresent
+                    status: s.isPresent,
+                    timestamp: timestamp
                 })
-            )
+            })
 
             await Promise.all(promises)
 
@@ -258,10 +260,28 @@ export default function EditPertemuanPage() {
 
                 {/* Header */}
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Edit Kehadiran</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Mata Kuliah: {data?.matkul_name} - Pertemuan {data?.pertemuan} ({formattedDate})
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-3xl font-bold tracking-tight">Edit Kehadiran</h1>
+                        {data?.is_rescheduled && (
+                            <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 font-semibold">
+                                Reschedule
+                            </Badge>
+                        )}
+                    </div>
+                    <p className="text-muted-foreground mt-1 text-lg">
+                        Mata Kuliah: {data?.matkul_name}
                     </p>
+                    <div className="flex items-center gap-2 mt-2 text-slate-600">
+                        <span className="font-medium">Pertemuan {data?.pertemuan}</span>
+                        <span>•</span>
+                        <span>{formattedDate}</span>
+                        {data?.jam_awal && data?.jam_akhir && (
+                            <>
+                                <span>•</span>
+                                <span>{data.jam_awal} - {data.jam_akhir}</span>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Summary Cards */}

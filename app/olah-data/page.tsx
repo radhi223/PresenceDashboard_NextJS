@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/hooks/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 interface Pertemuan {
   pertemuan: number
@@ -15,6 +16,7 @@ interface Pertemuan {
   present_count: number
   total_enrolled: number
   attendance_ratio: string
+  is_rescheduled?: boolean
 }
 
 interface Matkul {
@@ -296,9 +298,18 @@ export default function OlahDataPage() {
                                     </span>
                                   )}
                                   {/* Status Badge */}
-                                  <span className={`text-xs px-2 py-1 rounded-full border font-medium ${getStatusColor(pertemuan.status)}`}>
-                                    {pertemuan.status}
-                                  </span>
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-1">
+                                      {pertemuan.is_rescheduled && (
+                                        <Badge variant="outline" className="h-5 text-[10px] px-1.5 border-orange-200 bg-orange-50 text-orange-700 font-bold whitespace-nowrap">
+                                          Reschedule
+                                        </Badge>
+                                      )}
+                                      <span className={`text-xs px-2 py-1 rounded-full border font-medium whitespace-nowrap ${getStatusColor(pertemuan.status)}`}>
+                                        {pertemuan.status}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             ))}

@@ -58,6 +58,9 @@ export interface PertemuanSummary {
   present_count: number;
   total_enrolled: number;
   attendance_ratio: string;
+  is_rescheduled: boolean;
+  jam_awal: string;
+  jam_akhir: string;
 }
 
 export interface Matkul {
@@ -144,6 +147,9 @@ export interface PertemuanDetail {
   hadir: number;
   tidak_hadir: number;
   students: StudentAttendance[];
+  jam_awal: string;
+  jam_akhir: string;
+  is_rescheduled: boolean;
 }
 
 export function fetchPertemuanDetail(token: string, matkulId: string, pertemuanKe: number) {
@@ -219,6 +225,7 @@ export interface ManualAttendancePayload {
   pertemuan: number;
   student_id: string;
   status: boolean;
+  timestamp?: string;
 }
 
 export function updateManualAttendance(token: string, payload: ManualAttendancePayload) {

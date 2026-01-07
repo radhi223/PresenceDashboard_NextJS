@@ -54,6 +54,22 @@ import {
 } from "@/components/ui/pagination"
 import { Loader2, Users, CheckCircle2, XCircle, Search, Edit, Calendar as CalendarIcon } from "lucide-react"
 
+// Helper to extract readable time from ISO string
+function formatTimeFromISO(isoString: string): string {
+  if (!isoString || isoString === "-") return "-"
+  try {
+    // If it's a full ISO string
+    if (isoString.includes("T")) {
+       const dateObj = new Date(isoString);
+       // Format to HH:MM:SS
+       return dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    }
+    return isoString
+  } catch {
+    return isoString
+  }
+}
+
 export default function DetailPertemuanPage() {
   const params = useParams()
   const router = useRouter()
@@ -198,10 +214,29 @@ export default function DetailPertemuanPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Detail Pertemuan</h1>
-            <p className="text-muted-foreground mt-1">
-              Mata Kuliah: {data?.matkul_name} - Pertemuan {data?.pertemuan} ({formattedDate})
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight">Detail Pertemuan</h1>
+              { data?.is_rescheduled && (
+                <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 font-semibold">
+                  Reschedule
+                </Badge>
+              )}
+            </div>
+            
+            <p className="text-muted-foreground mt-1 text-lg">
+              Mata Kuliah: {data?.matkul_name}
             </p>
+            <div className="flex items-center gap-2 mt-2 text-slate-600">
+               <span className="font-medium">Pertemuan {data?.pertemuan}</span>
+               <span>•</span>
+               <span>{formattedDate}</span>
+               { data?.jam_awal && data?.jam_akhir && (
+                  <>
+                    <span>•</span>
+                    <span>{data.jam_awal} - {data.jam_akhir}</span>
+                  </>
+               )}
+            </div>
           </div>
 
           <Dialog open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}>
@@ -396,7 +431,7 @@ export default function DetailPertemuanPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                      {student.waktu_absen !== "-" ? student.waktu_absen : "-"}
+                      {formatTimeFromISO(student.waktu_absen)}
                     </TableCell>
                   </TableRow>
                 ))
