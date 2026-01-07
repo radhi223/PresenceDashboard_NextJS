@@ -17,6 +17,8 @@ interface SubjectCardData {
   status: SubjectStatus
   presentStudents?: number
   totalStudents?: number
+  meetingNumber?: number
+  meetingDate?: string
 }
 
 function formatDateHuman(date: Date) {
@@ -67,6 +69,10 @@ function getSubjectData(matkul: Matkul): SubjectCardData {
     status,
     presentStudents: targetPertemuan?.present_count,
     totalStudents: targetPertemuan?.total_enrolled,
+    meetingNumber: targetPertemuan?.pertemuan,
+    meetingDate: targetPertemuan?.tanggal
+      ? formatDateHuman(new Date(targetPertemuan.tanggal))
+      : undefined,
   }
 }
 
@@ -216,15 +222,33 @@ export default function Dashboard() {
                     <span>{subject.time}</span>
                   </div>
 
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Mahasiswa yang Hadir</p>
+                    {subject.status === "upcoming" ? (
+                      <div className="text-sm font-medium text-slate-700">KELAS BELUM DIMULAI</div>
+                    ) : (
+                      <div className="text-sm font-semibold text-slate-900">{subject.presentStudents || 0}/{subject.totalStudents || 0} hadir</div>
+                    )}
+                  </div>
+
                   <div className="border-t border-slate-200 pt-4">
                     <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Status</p>
+
+                    {subject.meetingNumber != null ? (
+                      <div className="mb-2">
+                        <div className="text-sm text-slate-600">Pertemuan ke-{subject.meetingNumber}</div>
+                        {subject.meetingDate ? (
+                          <div className="text-xs text-slate-500 mt-1">{subject.meetingDate}</div>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {subject.status === "ongoing" ? (
                       <>
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-medium text-slate-700">Mahasiswa Hadir</span>
+                          <span className="text-sm font-medium text-slate-700">Sedang berlangsung</span>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Sedang berlangsung
+                            Live
                           </span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
@@ -240,9 +264,6 @@ export default function Dashboard() {
                             }}
                           />
                         </div>
-                        <p className="text-right text-sm font-semibold text-slate-900 mt-2">
-                          {subject.presentStudents || 0}/{subject.totalStudents || 0}
-                        </p>
                       </>
                     ) : subject.status === "completed" ? (
                       <div className="text-sm text-slate-600 flex items-center justify-between flex-wrap gap-2">
@@ -254,7 +275,7 @@ export default function Dashboard() {
                     ) : (
                       <div className="flex items-center justify-center gap-2 text-slate-400 py-6">
                         <Users size={20} />
-                        <span className="text-sm font-medium">Kelas belum dimulai</span>
+                        <span className="text-sm font-medium">Menunggu waktu mulai</span>
                       </div>
                     )}
                   </div>
