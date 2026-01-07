@@ -214,4 +214,22 @@ export function rescheduleClass(token: string, payload: ReschedulePayload) {
   });
 }
 
+export interface ManualAttendancePayload {
+  matkul_id: string;
+  pertemuan: number;
+  student_id: string;
+  status: boolean;
+}
+
+export function updateManualAttendance(token: string, payload: ManualAttendancePayload) {
+  return apiFetch<{ status: string; message: string }>("/matkul/attendance-manual", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 export { API_BASE_URL };
