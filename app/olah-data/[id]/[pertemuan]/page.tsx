@@ -54,15 +54,16 @@ import {
 } from "@/components/ui/pagination"
 import { Loader2, Users, CheckCircle2, XCircle, Search, Edit, Calendar as CalendarIcon } from "lucide-react"
 
-// Helper to extract readable time from ISO string
+// Helper to extract readable time from ISO string (TREATING UTC AS LOCAL/NAIVE)
 function formatTimeFromISO(isoString: string): string {
-  if (!isoString || isoString === "-") return "-"
+  if (!isoString || isoString === "-" || isoString === "") return "-"
   try {
     // If it's a full ISO string
     if (isoString.includes("T")) {
-       const dateObj = new Date(isoString);
-       // Format to HH:MM:SS
-       return dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+       const timePart = isoString.split("T")[1];
+       // Strip Z or timezone info and return clean HH:MM:SS
+       const cleanTime = timePart.replace("Z", "").replace("+00:00", "").split(".")[0];
+       if (cleanTime.includes(":")) return cleanTime;
     }
     return isoString
   } catch {

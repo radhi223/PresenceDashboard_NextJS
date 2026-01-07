@@ -41,23 +41,18 @@ interface EditableStudent extends StudentAttendance {
     editedTime: string // Just HH:MM:SS format
 }
 
-// Helper to extract time from ISO timestamp
+// Helper to extract time from ISO timestamp (TREATING UTC AS LOCAL/NAIVE)
+// We ignore the 'Z' and read the time parts directly to match Seeder/Backend "Fake UTC" logic.
 function extractTimeFromISO(isoString: string): string {
-    if (!isoString || isoString === "-") return ""
+    if (!isoString || isoString === "-" || isoString === "") return ""
     try {
-        // Handle various formats
+        // Expected format: YYYY-MM-DDTHH:MM:SS...Z
         if (isoString.includes("T")) {
-            const timePart = isoString.split("T")[1]
-            // Remove timezone info (Z or +00:00)
-            const timeOnly = timePart.replace("Z", "").split("+")[0].split("-")[0]
-            // Return HH:MM:SS format
-            const parts = timeOnly.split(":")
-            if (parts.length >= 2) {
-                const hours = parts[0].padStart(2, "0")
-                const minutes = parts[1].padStart(2, "0")
-                const seconds = parts[2] ? parts[2].split(".")[0].padStart(2, "0") : "00"
-                return `${hours}:${minutes}:${seconds}`
-            }
+            const timePart = isoString.split("T")[1]; // Get "HH:MM:SS.000Z" part
+            // Remove Z, +00:00 etc. and just take the first 8 chars (HH:MM:SS)
+            // This ensures we see "09:30" regardless of local timezone
+            const pureTime = timePart.replace("Z", "").replace("+00:00", "").split(".")[0]; 
+            return pureTime;
         }
         return isoString
     } catch {
@@ -65,15 +60,23 @@ function extractTimeFromISO(isoString: string): string {
     }
 }
 
-// Helper to create ISO timestamp from date and time
+// Helper to create ISO timestamp (FORCING NAIVE/FAKE UTC)
+// We simply stick the Date + Time + Z together.
+// Input: dateStr="2025-01-07", timeStr="09:30"
+// Output: "2025-01-07T09:30:00Z" (Which backend sees as 09:30 AM Naive)
 function createISOTimestamp(dateStr: string, timeStr: string): string {
     if (!dateStr || !timeStr) return ""
-    // Ensure time has seconds
-    const timeParts = timeStr.split(":")
-    const hours = timeParts[0] || "00"
-    const minutes = timeParts[1] || "00"
-    const seconds = timeParts[2] || "00"
-    return `${dateStr}T${hours}:${minutes}:${seconds}Z`
+    try {
+        // Ensure seconds exist
+        const timeParts = timeStr.split(':');
+        const hours = timeParts[0] || '00';
+        const minutes = timeParts[1] || '00';
+        const seconds = timeParts[2] || '00';
+        
+        return `${dateStr}T${hours}:${minutes}:${seconds}Z`;
+    } catch {
+        return ""
+    }
 }
 
 export default function EditPertemuanPage() {
@@ -105,6 +108,13 @@ export default function EditPertemuanPage() {
                 setLoading(true)
                 const result = await fetchPertemuanDetail(token, id, parseInt(pertemuan))
                 setData(result)
+
+                // Check Status: Block access if "Belum Dimulai"
+                if (result.status === "Belum Dimulai") {
+                    alert("Absensi belum dapat diisi karena kelas belum dimulai.");
+                    router.push(`/olah-data/${id}/${pertemuan}`); // Redirect back to detail
+                    return;
+                }
 
                 // Initialize editable students - extract time from ISO timestamp
                 const editableStudents: EditableStudent[] = result.students.map(student => ({
