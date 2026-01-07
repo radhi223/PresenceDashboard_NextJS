@@ -34,13 +34,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import { Loader2, Users, CheckCircle2, XCircle, Search, Edit, Plus } from "lucide-react"
+import { Loader2, Users, CheckCircle2, XCircle, Search, Edit } from "lucide-react"
 
 export default function DetailPertemuanPage() {
   const params = useParams()
   const router = useRouter()
   const { token, loading: authLoading } = useAuth()
-  
+
   const [data, setData] = useState<PertemuanDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -74,16 +74,16 @@ export default function DetailPertemuanPage() {
   }, [token, authLoading, id, pertemuan, router])
 
   // Simple formatting for date
-  const formattedDate = data?.tanggal 
+  const formattedDate = data?.tanggal
     ? new Date(data.tanggal).toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric"
-      })
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    })
     : "-"
 
   // Filter & Pagination Logic
-  const filteredStudents = data?.students.filter(student => 
+  const filteredStudents = data?.students.filter(student =>
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.nim.toLowerCase().includes(searchQuery.toLowerCase())
   ) || []
@@ -197,13 +197,13 @@ export default function DetailPertemuanPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/olah-data/${id}/${pertemuan}/edit`)}
+            >
               <Edit className="w-4 h-4 mr-2" />
               Edit
-            </Button>
-            <Button size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Tambah
             </Button>
           </div>
         </div>
@@ -228,17 +228,16 @@ export default function DetailPertemuanPage() {
                     <TableCell className="font-medium">{student.name}</TableCell>
                     <TableCell>{student.nim}</TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant="secondary"
                         className={
-                          student.status === "Hadir" 
-                            ? "bg-green-100 text-green-700 hover:bg-green-100" 
+                          student.status === "Hadir"
+                            ? "bg-green-100 text-green-700 hover:bg-green-100"
                             : "bg-red-100 text-red-700 hover:bg-red-100"
                         }
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
-                            student.status === "Hadir" ? "bg-green-600" : "bg-red-600"
-                        }`} />
+                        <span className={`w-1.5 h-1.5 rounded-full mr-2 ${student.status === "Hadir" ? "bg-green-600" : "bg-red-600"
+                          }`} />
                         {student.status}
                       </Badge>
                     </TableCell>
@@ -256,7 +255,7 @@ export default function DetailPertemuanPage() {
               )}
             </TableBody>
           </Table>
-          
+
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-4 border-t">
             <div className="text-sm text-muted-foreground">
@@ -266,8 +265,8 @@ export default function DetailPertemuanPage() {
               <Pagination>
                 <PaginationContent>
                   <PaginationItem>
-                    <PaginationPrevious 
-                      href="#" 
+                    <PaginationPrevious
+                      href="#"
                       onClick={(e) => {
                         e.preventDefault()
                         if (currentPage > 1) setCurrentPage(p => p - 1)
@@ -277,8 +276,8 @@ export default function DetailPertemuanPage() {
                   </PaginationItem>
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <PaginationItem key={page}>
-                      <PaginationLink 
-                        href="#" 
+                      <PaginationLink
+                        href="#"
                         isActive={currentPage === page}
                         onClick={(e) => {
                           e.preventDefault()
@@ -290,8 +289,8 @@ export default function DetailPertemuanPage() {
                     </PaginationItem>
                   ))}
                   <PaginationItem>
-                    <PaginationNext 
-                      href="#" 
+                    <PaginationNext
+                      href="#"
                       onClick={(e) => {
                         e.preventDefault()
                         if (currentPage < totalPages) setCurrentPage(p => p + 1)

@@ -120,7 +120,7 @@ export function fetchAttendanceReportBySchedule(
     meeting_date: params.meetingDate,
   });
 
-  return apiFetch<AttendanceReport>(`/attendance/report/by-schedule?${search.toString()}` , {
+  return apiFetch<AttendanceReport>(`/attendance/report/by-schedule?${search.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -151,6 +151,30 @@ export function fetchPertemuanDetail(token: string, matkulId: string, pertemuanK
     headers: {
       Authorization: `Bearer ${token}`,
     },
+  });
+}
+
+// Types for attendance update
+export interface AttendanceUpdateItem {
+  user_id: string;
+  present: boolean;
+  waktu_absen: string | null;
+}
+
+export interface UpdateAttendancePayload {
+  matkul_id: string;
+  pertemuan: number;
+  attendance: AttendanceUpdateItem[];
+}
+
+export function updateAttendance(token: string, payload: UpdateAttendancePayload) {
+  return apiFetch<{ message: string }>("/attendance/update-bulk", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
   });
 }
 
