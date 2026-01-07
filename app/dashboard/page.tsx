@@ -1,13 +1,42 @@
 "use client"
 
+// Dashboard Page - Simplified to match Olah Data approach
+
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Clock, Users, Home, Loader2, AlertCircle } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/hooks/auth"
-import type { Matkul } from "@/lib/api"
 
 type SubjectStatus = "ongoing" | "upcoming" | "completed"
+
+interface Pertemuan {
+  pertemuan: number
+  tanggal: string
+  status: "Selesai" | "Sedang Berlangsung" | "Belum Dimulai"
+  present_count: number
+  total_enrolled: number
+  attendance_ratio: string
+}
+
+interface Matkul {
+  _id: string
+  nama_matkul: string
+  sks: number
+  account_id: string
+  class_id: string
+  hari: string
+  jam_awal: string
+  jam_akhir: string
+  tanggal_awal: string
+  pertemuan_list: Pertemuan[]
+  class_info?: {
+    _id: string
+    no_kelas?: string
+    gedung?: string
+    fakultas?: string
+  }
+}
 
 interface SubjectCardData {
   id: string
@@ -19,6 +48,7 @@ interface SubjectCardData {
   totalStudents?: number
   meetingNumber?: number
   meetingDate?: string
+  attendanceRatio?: string
 }
 
 function formatDateHuman(date: Date) {
@@ -33,10 +63,12 @@ function getSubjectData(matkul: Matkul): SubjectCardData {
   const today = new Date()
   const todayKey = today.toISOString().slice(0, 10)
 
+  // Sort pertemuan by date
   const sortedPertemuan = (matkul.pertemuan_list || []).slice().sort((a, b) =>
     a.tanggal.localeCompare(b.tanggal)
   )
 
+  // Find today's meeting, or upcoming, or fallback to last meeting
   const pertemuanToday = sortedPertemuan.find((pertemuan) =>
     pertemuan.tanggal.slice(0, 10) === todayKey
   )
@@ -48,6 +80,7 @@ function getSubjectData(matkul: Matkul): SubjectCardData {
   const fallbackPertemuan = sortedPertemuan[sortedPertemuan.length - 1]
   const targetPertemuan = pertemuanToday || upcomingPertemuan || fallbackPertemuan
 
+  // Determine status
   let status: SubjectStatus = "upcoming"
   if (targetPertemuan?.status === "Sedang Berlangsung") {
     status = "ongoing"
@@ -55,6 +88,7 @@ function getSubjectData(matkul: Matkul): SubjectCardData {
     status = "completed"
   }
 
+  // Get class label
   const classLabel = matkul.class_info?.no_kelas
     ? `Kelas ${matkul.class_info.no_kelas}`
     : matkul.class_info?.gedung
@@ -73,12 +107,30 @@ function getSubjectData(matkul: Matkul): SubjectCardData {
     meetingDate: targetPertemuan?.tanggal
       ? formatDateHuman(new Date(targetPertemuan.tanggal))
       : undefined,
+    attendanceRatio: targetPertemuan?.attendance_ratio,
   }
 }
+
+
+// Test validasi status
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   ? process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")
   : "http://localhost:8000"
+
+  const DUMMY_ONGOING_SUBJECT: SubjectCardData = {
+  id: "__dummy_ongoing__",
+  name: "Pemrograman Lanjut",
+  classLabel: "Kelas A",
+  time: "08:00 - 09:40",
+  status: "upcoming",
+  presentStudents: 28,
+  totalStudents: 32,
+  meetingNumber: 7,
+  meetingDate: formatDateHuman(new Date()),
+  attendanceRatio: "28/32",
+}
+
 
 export default function Dashboard() {
   const router = useRouter()
@@ -94,7 +146,7 @@ export default function Dashboard() {
     }
   }, [loading, isAuthenticated, router])
 
-  // Fetch Matkul data
+  // Fetch Matkul data - Single fetch like Olah Data
   useEffect(() => {
     let isMounted = true
 
@@ -126,6 +178,7 @@ export default function Dashboard() {
         }
 
         const data: Matkul[] = await response.json()
+        console.log("Matkul data received:", data)
         if (isMounted) setMatkulList(data)
       } catch (err: any) {
         if (isMounted) setError(err.message || "Gagal memuat data mata kuliah")
@@ -140,16 +193,26 @@ export default function Dashboard() {
     }
   }, [token, router])
 
+  // Process matkul list into subject cards
   const subjects = useMemo<SubjectCardData[]>(() => {
-    return matkulList.map(getSubjectData).sort((a, b) => {
-      const order: Record<SubjectStatus, number> = {
-        ongoing: 0,
-        upcoming: 1,
-        completed: 2,
-      }
-      return order[a.status] - order[b.status]
-    })
-  }, [matkulList])
+  const list = matkulList.map(getSubjectData)
+
+  // ===== DUMMY ONGOING (DEV ONLY) =====
+  const withDummy =
+    process.env.NODE_ENV === "development"
+      ? [DUMMY_ONGOING_SUBJECT, ...list]
+      : list
+
+  return withDummy.sort((a, b) => {
+    const order: Record<SubjectStatus, number> = {
+      ongoing: 0,
+      upcoming: 1,
+      completed: 2,
+    }
+    return order[a.status] - order[b.status]
+  })
+}, [matkulList])
+
 
   if (loading) {
     return (
@@ -223,11 +286,15 @@ export default function Dashboard() {
                   </div>
 
                   <div className="mb-4">
-                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Mahasiswa yang Hadir</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Kehadiran</p>
                     {subject.status === "upcoming" ? (
                       <div className="text-sm font-medium text-slate-700">KELAS BELUM DIMULAI</div>
                     ) : (
-                      <div className="text-sm font-semibold text-slate-900">{subject.presentStudents || 0}/{subject.totalStudents || 0} hadir</div>
+                      <>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {subject.attendanceRatio || `${subject.presentStudents || 0}/${subject.totalStudents || 0}`} mahasiswa hadir
+                        </div>
+                      </>
                     )}
                   </div>
 
@@ -251,7 +318,7 @@ export default function Dashboard() {
                             Live
                           </span>
                         </div>
-                        <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        {/* <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                           <div
                             className="bg-blue-600 h-full rounded-full"
                             style={{
@@ -263,7 +330,7 @@ export default function Dashboard() {
                                 : "0%",
                             }}
                           />
-                        </div>
+                        </div> */}
                       </>
                     ) : subject.status === "completed" ? (
                       <div className="text-sm text-slate-600 flex items-center justify-between flex-wrap gap-2">
