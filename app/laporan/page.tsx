@@ -169,6 +169,7 @@ export default function Laporan() {
         }
 
         const data: ReportSummary = await response.json()
+        console.log("Report Summary:", data)
         setSummary(data)
         const defaultStudent = data.default_student_id || data.students?.[0]?.user_id || ""
         setSelectedStudentId(defaultStudent)
@@ -212,6 +213,7 @@ export default function Laporan() {
         }
 
         const data: MatkulComparison[] = await response.json()
+        console.log("Comparison Data:", data)
         setComparisonData(data)
       } catch (err: any) {
         setComparisonData([])
