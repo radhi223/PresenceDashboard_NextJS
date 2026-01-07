@@ -37,7 +37,42 @@ import { Loader2, Users, CheckCircle2, XCircle, Save, X, AlertCircle } from "luc
 
 interface EditableStudent extends StudentAttendance {
     isPresent: boolean
-    editedWaktuAbsen: string
+    editedTime: string // Just HH:MM:SS format
+}
+
+// Helper to extract time from ISO timestamp
+function extractTimeFromISO(isoString: string): string {
+    if (!isoString || isoString === "-") return ""
+    try {
+        // Handle various formats
+        if (isoString.includes("T")) {
+            const timePart = isoString.split("T")[1]
+            // Remove timezone info (Z or +00:00)
+            const timeOnly = timePart.replace("Z", "").split("+")[0].split("-")[0]
+            // Return HH:MM:SS format
+            const parts = timeOnly.split(":")
+            if (parts.length >= 2) {
+                const hours = parts[0].padStart(2, "0")
+                const minutes = parts[1].padStart(2, "0")
+                const seconds = parts[2] ? parts[2].split(".")[0].padStart(2, "0") : "00"
+                return `${hours}:${minutes}:${seconds}`
+            }
+        }
+        return isoString
+    } catch {
+        return ""
+    }
+}
+
+// Helper to create ISO timestamp from date and time
+function createISOTimestamp(dateStr: string, timeStr: string): string {
+    if (!dateStr || !timeStr) return ""
+    // Ensure time has seconds
+    const timeParts = timeStr.split(":")
+    const hours = timeParts[0] || "00"
+    const minutes = timeParts[1] || "00"
+    const seconds = timeParts[2] || "00"
+    return `${dateStr}T${hours}:${minutes}:${seconds}Z`
 }
 
 export default function EditPertemuanPage() {
@@ -70,12 +105,11 @@ export default function EditPertemuanPage() {
                 const result = await fetchPertemuanDetail(token, id, parseInt(pertemuan))
                 setData(result)
 
-                // Initialize editable students from fetched data
-                // waktu_absen comes as full ISO timestamp string from API
+                // Initialize editable students - extract time from ISO timestamp
                 const editableStudents: EditableStudent[] = result.students.map(student => ({
                     ...student,
                     isPresent: student.status === "Hadir",
-                    editedWaktuAbsen: student.waktu_absen !== "-" ? student.waktu_absen : ""
+                    editedTime: extractTimeFromISO(student.waktu_absen)
                 }))
                 setStudents(editableStudents)
             } catch (err: any) {
@@ -112,19 +146,19 @@ export default function EditPertemuanPage() {
         ))
     }
 
-    // Handle timestamp change (full ISO string)
-    const handleTimeChange = (studentId: string, timestamp: string) => {
+    // Handle time change
+    const handleTimeChange = (studentId: string, time: string) => {
         setValidationError("")
         setStudents(prev => prev.map(s =>
             s.id === studentId
-                ? { ...s, editedWaktuAbsen: timestamp }
+                ? { ...s, editedTime: time }
                 : s
         ))
     }
 
     // Validate before save
     const validate = (): boolean => {
-        const invalidStudents = students.filter(s => s.isPresent && !s.editedWaktuAbsen.trim())
+        const invalidStudents = students.filter(s => s.isPresent && !s.editedTime.trim())
         if (invalidStudents.length > 0) {
             const names = invalidStudents.map(s => s.name).join(", ")
             setValidationError(`Mahasiswa berikut harus memiliki waktu absen: ${names}`)
@@ -142,10 +176,13 @@ export default function EditPertemuanPage() {
             setSaving(true)
             setValidationError("")
 
+            // Convert time to full ISO timestamp using pertemuan date
+            const meetingDate = data.tanggal // YYYY-MM-DD format
+
             const attendanceData = students.map(s => ({
                 user_id: s.id,
                 present: s.isPresent,
-                waktu_absen: s.isPresent ? s.editedWaktuAbsen : null
+                waktu_absen: s.isPresent ? createISOTimestamp(meetingDate, s.editedTime) : null
             }))
 
             await updateAttendance(token, {
@@ -296,7 +333,7 @@ export default function EditPertemuanPage() {
                                 <TableHead className="w-[50px]">NO</TableHead>
                                 <TableHead>NAMA MAHASISWA</TableHead>
                                 <TableHead>NIM</TableHead>
-                                <TableHead className="text-right">WAKTU ABSEN (ISO Timestamp)</TableHead>
+                                <TableHead className="text-right">WAKTU ABSEN</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -314,12 +351,12 @@ export default function EditPertemuanPage() {
                                         <TableCell>{student.nim}</TableCell>
                                         <TableCell className="text-right">
                                             <Input
-                                                type="text"
-                                                className="w-56 ml-auto text-right font-mono text-xs"
-                                                value={student.editedWaktuAbsen}
+                                                type="time"
+                                                step="1"
+                                                className="w-32 ml-auto text-right font-mono text-sm"
+                                                value={student.editedTime}
                                                 onChange={(e) => handleTimeChange(student.id, e.target.value)}
                                                 disabled={!student.isPresent}
-                                                placeholder="2026-01-07T08:00:00Z"
                                             />
                                         </TableCell>
                                     </TableRow>
