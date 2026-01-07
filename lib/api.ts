@@ -120,7 +120,7 @@ export function fetchAttendanceReportBySchedule(
     meeting_date: params.meetingDate,
   });
 
-  return apiFetch<AttendanceReport>(`/attendance/report/by-schedule?${search.toString()}` , {
+  return apiFetch<AttendanceReport>(`/attendance/report/by-schedule?${search.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -151,6 +151,66 @@ export function fetchPertemuanDetail(token: string, matkulId: string, pertemuanK
     headers: {
       Authorization: `Bearer ${token}`,
     },
+  });
+}
+
+// Types for attendance update
+export interface AttendanceUpdateItem {
+  user_id: string;
+  present: boolean;
+  waktu_absen: string | null;
+}
+
+export interface UpdateAttendancePayload {
+  matkul_id: string;
+  pertemuan: number;
+  attendance: AttendanceUpdateItem[];
+}
+
+export function updateAttendance(token: string, payload: UpdateAttendancePayload) {
+  return apiFetch<{ message: string }>("/attendance/update-bulk", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface ClassRoom {
+  _id: string;
+  no_kelas: string;
+  gedung: string;
+  fakultas: string;
+}
+
+export function fetchClasses(token: string) {
+  return apiFetch<ClassRoom[]>("/class/", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export interface ReschedulePayload {
+  matkul_id: string;
+  pertemuan: number;
+  tanggal_baru: string;
+  jam_mulai_baru: string;
+  jam_selesai_baru: string;
+  class_id?: string | null;
+  is_online: boolean;
+}
+
+export function rescheduleClass(token: string, payload: ReschedulePayload) {
+  return apiFetch<{ status: string; message: string }>("/matkul/reschedule", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
   });
 }
 
