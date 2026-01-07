@@ -27,15 +27,6 @@ export default function Header() {
 
         {/* Right Side - User Info */}
         <div className="flex items-center gap-6">
-          {/* Notifications */}
-          <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <Bell size={20} className="text-slate-600" />
-          </button>
-
-          {/* Settings */}
-          <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <Settings size={20} className="text-slate-600" />
-          </button>
 
           {/* User Profile */}
           <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
