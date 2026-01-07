@@ -111,19 +111,16 @@ function getSubjectData(matkul: Matkul): SubjectCardData {
   }
 }
 
-
-// Test validasi status
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   ? process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")
   : "http://localhost:8000"
 
   const DUMMY_ONGOING_SUBJECT: SubjectCardData = {
   id: "__dummy_ongoing__",
-  name: "Pemrograman Lanjut",
+  name: "Pemrograman Lanjut (Dummy)",
   classLabel: "Kelas A",
   time: "08:00 - 09:40",
-  status: "upcoming",
+  status: "ongoing",
   presentStudents: 28,
   totalStudents: 32,
   meetingNumber: 7,
@@ -195,24 +192,13 @@ export default function Dashboard() {
 
   // Process matkul list into subject cards
   const subjects = useMemo<SubjectCardData[]>(() => {
-  const list = matkulList.map(getSubjectData)
-
-  // ===== DUMMY ONGOING (DEV ONLY) =====
-  const withDummy =
-    process.env.NODE_ENV === "development"
-      ? [DUMMY_ONGOING_SUBJECT, ...list]
-      : list
-
-  return withDummy.sort((a, b) => {
-    const order: Record<SubjectStatus, number> = {
-      ongoing: 0,
-      upcoming: 1,
-      completed: 2,
-    }
-    return order[a.status] - order[b.status]
-  })
-}, [matkulList])
-
+    const list = matkulList.map(getSubjectData)
+    // Sort by status: ongoing first, then upcoming, then completed
+    return list.sort((a, b) => {
+      const order: Record<SubjectStatus, number> = { ongoing: 0, upcoming: 1, completed: 2 }
+      return order[a.status] - order[b.status]
+    })
+  }, [matkulList])
 
   if (loading) {
     return (
