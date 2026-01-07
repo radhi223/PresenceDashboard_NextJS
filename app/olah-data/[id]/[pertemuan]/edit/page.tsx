@@ -41,23 +41,17 @@ interface EditableStudent extends StudentAttendance {
     editedTime: string // Just HH:MM:SS format
 }
 
-// Helper to extract time from ISO timestamp
+// Helper to extract time from ISO timestamp (converts to local time)
 function extractTimeFromISO(isoString: string): string {
     if (!isoString || isoString === "-") return ""
     try {
-        // Handle various formats
         if (isoString.includes("T")) {
-            const timePart = isoString.split("T")[1]
-            // Remove timezone info (Z or +00:00)
-            const timeOnly = timePart.replace("Z", "").split("+")[0].split("-")[0]
-            // Return HH:MM:SS format
-            const parts = timeOnly.split(":")
-            if (parts.length >= 2) {
-                const hours = parts[0].padStart(2, "0")
-                const minutes = parts[1].padStart(2, "0")
-                const seconds = parts[2] ? parts[2].split(".")[0].padStart(2, "0") : "00"
-                return `${hours}:${minutes}:${seconds}`
-            }
+            const date = new Date(isoString)
+            // Get local time components
+            const hours = date.getHours().toString().padStart(2, '0')
+            const minutes = date.getMinutes().toString().padStart(2, '0')
+            const seconds = date.getSeconds().toString().padStart(2, '0')
+            return `${hours}:${minutes}:${seconds}`
         }
         return isoString
     } catch {
@@ -65,15 +59,21 @@ function extractTimeFromISO(isoString: string): string {
     }
 }
 
-// Helper to create ISO timestamp from date and time
+// Helper to create ISO timestamp from date and time (Local -> UTC)
 function createISOTimestamp(dateStr: string, timeStr: string): string {
     if (!dateStr || !timeStr) return ""
-    // Ensure time has seconds
-    const timeParts = timeStr.split(":")
-    const hours = timeParts[0] || "00"
-    const minutes = timeParts[1] || "00"
-    const seconds = timeParts[2] || "00"
-    return `${dateStr}T${hours}:${minutes}:${seconds}Z`
+    try {
+        const [year, month, day] = dateStr.split("-").map(Number)
+        const [hours, minutes, seconds] = timeStr.split(":").map(Number)
+        
+        // Create date in local timezone
+        const date = new Date(year, month - 1, day, hours, minutes, seconds || 0)
+        
+        // Return ISO string (UTC)
+        return date.toISOString()
+    } catch {
+        return ""
+    }
 }
 
 export default function EditPertemuanPage() {
