@@ -51,7 +51,7 @@ function extractTimeFromISO(isoString: string): string {
             const timePart = isoString.split("T")[1]; // Get "HH:MM:SS.000Z" part
             // Remove Z, +00:00 etc. and just take the first 8 chars (HH:MM:SS)
             // This ensures we see "09:30" regardless of local timezone
-            const pureTime = timePart.replace("Z", "").replace("+00:00", "").split(".")[0]; 
+            const pureTime = timePart.replace("Z", "").replace("+00:00", "").split(".")[0];
             return pureTime;
         }
         return isoString
@@ -72,7 +72,7 @@ function createISOTimestamp(dateStr: string, timeStr: string): string {
         const hours = timeParts[0] || '00';
         const minutes = timeParts[1] || '00';
         const seconds = timeParts[2] || '00';
-        
+
         return `${dateStr}T${hours}:${minutes}:${seconds}Z`;
     } catch {
         return ""
@@ -183,7 +183,7 @@ export default function EditPertemuanPage() {
         if (!token || !data) return
 
         // Optional: Run validation if we want to enforce time entry
-        // if (!validate()) return
+        if (!validate()) return
 
         try {
             setSaving(true)
