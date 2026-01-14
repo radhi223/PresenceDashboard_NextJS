@@ -52,7 +52,7 @@ const { login } = useAuth();
           <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
             <User className="h-6 w-6 text-slate-600" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">SmartPresence Login</span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">DashboardPresence Login</span>
         </div>
       </header>
 
@@ -60,7 +60,7 @@ const { login } = useAuth();
         <div className="text-center space-y-4 max-w-lg">
           <h1 className="text-5xl font-black tracking-tight text-slate-900">Welcome Back!</h1>
           <p className="text-slate-500 font-medium text-lg">
-            Log in to your SmartPresence account to access all features.
+            Log in to your DashboardPresence account to access all features.
           </p>
         </div>
 
